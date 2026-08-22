@@ -52,5 +52,25 @@ nix-shell -p mediasynclite
 
 Alternatively, you can clone this directory and run `nix-build` to build the derivation.
 
+## Duplicate detection & tagging
+MediaSync Lite now reads basic audio metadata (ID3v2/ID3v1 tags for MP3-family
+files, Vorbis comments for FLAC/Ogg/Opus) while scanning:
+- The file list and upload screens show a friendlier "Artist - Title" label
+  next to the path when tags are available.
+- In addition to MD5-based duplicate detection (comparing against the
+  hashes iBroadcast already has on file), a normalized
+  title/artist/album/track "signature" is used as a secondary duplicate
+  check, catching re-encoded or re-tagged copies of a track that a pure
+  MD5 comparison would miss.
+- Duplicate lookups now use hash sets instead of linear scans, so scanning
+  large libraries against a large existing collection is significantly
+  faster.
+- Files uploaded during the current run are recorded immediately, so
+  scanning the same folder again in the same session correctly skips them
+  as duplicates without needing to restart the app.
+
 ## Known issues
-After uploading files, the app must be restarted to prevent those files from being uploaded again as duplicates.
+Tag-based duplicate detection only covers files uploaded earlier in the
+current app run (the iBroadcast API used here only exposes existing
+server-side MD5 hashes, not full track metadata) - it does not retroactively
+catch re-tagged duplicates of files uploaded in a previous session.
