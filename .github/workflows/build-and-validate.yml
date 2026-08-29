@@ -64,10 +64,13 @@ jobs:
         run: |
           dpkg-buildpackage -us -uc -b
 
-      - name: Locate built .deb
+      - name: Locate built .deb and copy into workspace
         id: deb
         run: |
-          DEB_PATH=$(ls ../mediasynclite_*_*.deb | head -n1)
+          SRC_DEB=$(ls ../mediasynclite_*_*.deb | head -n1)
+          mkdir -p dist
+          cp "${SRC_DEB}" dist/
+          DEB_PATH="dist/$(basename "${SRC_DEB}")"
           echo "path=${DEB_PATH}" >> "$GITHUB_OUTPUT"
           echo "Built package: ${DEB_PATH}"
 
@@ -92,7 +95,7 @@ jobs:
 
       - name: Test package installation
         run: |
-          sudo apt-get install -y "${{ steps.deb.outputs.path }}"
+          sudo apt-get install -y "./${{ steps.deb.outputs.path }}"
           dpkg -s mediasynclite
           test -x /usr/bin/mediasynclite
           desktop-file-validate /usr/share/applications/mediasynclite.desktop
@@ -101,6 +104,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mediasynclite-deb
-          path: ../mediasynclite_*_*.deb
+          path: ${{ steps.deb.outputs.path }}
           if-no-files-found: error
           retention-days: 14
