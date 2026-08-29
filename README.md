@@ -125,4 +125,22 @@ GitHub Actions workflow, which:
 6. Validates the built `.deb` with `lintian` (failing the build on any
    `lintian` error or warning).
 7. Installs the built `.deb` with `apt-get` to confirm it installs cleanly.
-8. Uploads the built `.deb` as a downloadable workflow artifact.
+8. Uploads the built `.deb` as a downloadable workflow artifact
+   (kept for 14 days).
+
+### Publishing a release
+Pushing a version tag matching `v*.*.*` (e.g. `v0.4.3`) additionally
+triggers the `publish-release` job, which downloads the `.deb` produced by
+the build job and publishes it as a **GitHub Release** with the package
+attached as a downloadable asset — this is the persistent, user-facing way
+to distribute the package (unlike the 14-day workflow artifact above).
+
+To cut a release:
+```bash
+git tag v0.4.3
+git push origin v0.4.3
+```
+The release will appear at
+`https://github.com/<owner>/<repo>/releases/tag/v0.4.3` once the workflow
+completes, with release notes auto-generated from merged PRs/commits since
+the previous tag.
