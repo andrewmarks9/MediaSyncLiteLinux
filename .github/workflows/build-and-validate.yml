@@ -2,9 +2,12 @@ name: Build & Validate Package
 
 # Runs on every push (any branch) and on pull requests targeting master,
 # so the app and the .deb package are built and validated on every commit.
+# Pushing a version tag (e.g. v0.4.3) additionally publishes a GitHub
+# Release with the built .deb attached as a downloadable asset.
 on:
   push:
     branches: ['**']
+    tags: ['v*.*.*']
   pull_request:
     branches: [master]
   workflow_dispatch: {}
@@ -13,6 +16,9 @@ jobs:
   build-and-validate:
     name: Build app, build .deb, validate desktop/icon integration
     runs-on: ubuntu-latest
+    outputs:
+      deb_path: ${{ steps.deb.outputs.path }}
+      deb_name: ${{ steps.deb.outputs.name }}
 
     steps:
       - name: Checkout repository
@@ -70,8 +76,10 @@ jobs:
           SRC_DEB=$(ls ../mediasynclite_*_*.deb | head -n1)
           mkdir -p dist
           cp "${SRC_DEB}" dist/
-          DEB_PATH="dist/$(basename "${SRC_DEB}")"
+          DEB_NAME="$(basename "${SRC_DEB}")"
+          DEB_PATH="dist/${DEB_NAME}"
           echo "path=${DEB_PATH}" >> "$GITHUB_OUTPUT"
+          echo "name=${DEB_NAME}" >> "$GITHUB_OUTPUT"
           echo "Built package: ${DEB_PATH}"
 
       - name: Inspect package contents
@@ -107,3 +115,31 @@ jobs:
           path: ${{ steps.deb.outputs.path }}
           if-no-files-found: error
           retention-days: 14
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: build-and-validate
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download built .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mediasynclite-deb
+          path: dist
+
+      - name: Create GitHub Release and attach .deb
+        uses: softprops/action-gh-release@v2
+        with:
+          # ${{ github.ref_name }} is the pushed tag, e.g. v0.4.3
+          name: MediaSync Lite ${{ github.ref_name }}
+          files: dist/${{ needs.build-and-validate.outputs.deb_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
